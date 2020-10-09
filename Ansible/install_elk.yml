@@ -1,0 +1,157 @@
+# Defines if the HTTP endpoint is enabled.
+#http.enabled: false
+
+# The HTTP endpoint will bind to this hostname, IP address, unix socket or named pipe.
+# When using IP addresses, it is recommended to only use localhost.
+#http.host: localhost
+
+# Port on which the HTTP endpoint will bind. Default is 5066.
+#http.port: 5066
+
+# Define which user should be owning the named pipe.
+#http.named_pipe.user:
+
+# Define which the permissions that should be applied to the named pipe, use the Security
+# Descriptor Definition Language (SDDL) to define the permission. This option cannot be used with
+# `http.user`.
+#http.named_pipe.security_descriptor:
+
+#============================= Process Security ================================
+
+# Enable or disable seccomp system call filtering on Linux. Default is enabled.
+#seccomp.enabled: true
+
+#================================= Migration ==================================
+
+# This allows to enable 6.7 migration aliases
+#migration.6_to_7.enabled: falseroot@a26c6c716885:/etc/ansible#
+root@a26c6c716885:/etc/ansible# clear
+root@a26c6c716885:/etc/ansible# clear
+root@a26c6c716885:/etc/ansible# ls
+ansible.cfg  filebeat-config.yml  hosts  install-elk.yml  pentest.yml  roles
+root@a26c6c716885:/etc/ansible# hosts
+bash: hosts: command not found
+root@a26c6c716885:/etc/ansible# nano hosts
+root@a26c6c716885:/etc/ansible# ls
+ansible.cfg  filebeat-config.yml  hosts  install-elk.yml  pentest.yml  roles
+root@a26c6c716885:/etc/ansible# cat pentest.yml
+---
+- name: Config Web VM with Docker
+  hosts: webservers
+  become: true
+  tasks:
+  - name: Uninstall Apache2 / DVWA runs on same port
+    apt:
+     name: apache 2
+     state: absent
+
+  - name: docker.io
+    apt:
+      force_apt_get: yes
+      update_cache: yes
+      name: docker.io
+      state: present
+
+  - name: Install pip3
+    apt:
+      force_apt_get: yes
+      name: python3-pip
+      state: present
+
+  - name: Install Docker python module
+    pip:
+      name: docker
+      state: present
+
+  - name: download and launch a docker web container
+    docker_container:
+      name: dvwa
+      image: cyberxsecurity/dvwa
+      state: started
+      published_ports: 80:80
+
+  - name: Enable docker service
+    systemd:
+      name: docker
+      enabled: yes
+root@a26c6c716885:/etc/ansible# ls
+ansible.cfg  filebeat-config.yml  hosts  install-elk.yml  pentest.yml  roles
+root@a26c6c716885:/etc/ansible# cd roles
+root@a26c6c716885:/etc/ansible/roles# ls
+filebeat-config.yml  filebeat-playbook.yml  metricbeat-config.yml  metricbeat-playbook.yml
+root@a26c6c716885:/etc/ansible/roles# cat filebeat-playbook.yml
+---
+- name: Installing and Launch Filebeat
+  hosts: webservers
+  become: yes
+  tasks:
+    # Use command module
+  - name: Download filebeat .deb file
+    command: curl -L -O https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.4.0-amd64.deb
+    # Use command module
+  - name: Install filebeat .deb
+    command: dpkg -i filebeat-7.4.0-amd64.deb
+    # Use copy module
+  - name: Drop in filebeat.yml
+    copy:
+      src: /etc/ansible/roles/filebeat-config.yml
+      dest: /etc/filebeat/filebeat.yml
+    # Use command module
+  - name: Enable and Configure System Module
+    command: filebeat modules enable system
+    # Use command module
+  - name: Setup filebeat
+    command: filebeat setup
+    # Use command module
+  - name: Start filebeat service
+    command: service filebeat start
+
+root@a26c6c716885:/etc/ansible/roles# ls
+filebeat-config.yml  filebeat-playbook.yml  metricbeat-config.yml  metricbeat-playbook.yml
+root@a26c6c716885:/etc/ansible/roles# cd ..
+root@a26c6c716885:/etc/ansible# ls
+ansible.cfg  filebeat-config.yml  hosts  install-elk.yml  pentest.yml  roles
+root@a26c6c716885:/etc/ansible# cat install-elk
+cat: install-elk: No such file or directory
+root@a26c6c716885:/etc/ansible# cat install-elk.yml
+---
+- name: Configure Elk VM with Docker
+  hosts: elk
+  remote_user: azadmin
+  become: true
+  tasks:
+    # Use apt module
+    - name: Install docker.io
+      apt:
+        update_cache: yes
+        name: docker.io
+        state: present
+      # Use apt module
+    - name: Install pip3
+      apt:
+        force_apt_get: yes
+        name: python3-pip
+        state: present
+      # Use pip module
+    - name: Install Docker python module
+      pip:
+        name: docker
+        state: present
+      # Use sysctl module
+    - name: Use more memory
+      sysctl:
+        name: vm.max_map_count
+        value: "262144"
+        state: present
+        reload: yes
+      # Use docker_container module
+    - name: download and launch a docker elk container
+      docker_container:
+        name: elk
+        image: sebp/elk:761
+        state: started
+        restart_policy: always
+        published_ports:
+          - 5601:5601
+          - 9200:9200
+          - 5044:5044
